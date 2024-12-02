@@ -165,68 +165,239 @@ public class UInt {
     }
 
     public void or(UInt u) {
-        // TODO Complete the bitwise logical OR method
+    int maxLength = Math.max(this.length, u.length);
+    
+    // Resize the bits array if necessary
+    if (this.length < maxLength) {
+        this.bits = Arrays.copyOf(this.bits, maxLength);
+        this.length = maxLength;
+    }
+    
+    // Perform OR operation
+    for (int i = 0; i < maxLength; i++) {
+        boolean thisBit = i < this.length ? this.bits[this.length - i - 1] : false;
+        boolean otherBit = i < u.length ? u.bits[u.length - i - 1] : false;
+        this.bits[this.length - i - 1] = thisBit || otherBit;
+    }
+}
+
         return;
     }
 
     public static UInt or(UInt a, UInt b) {
-        // TODO Complete the static OR method
+    UInt result = a.clone();
+    result.or(b);
+    return result;
+}
+
         return null;
     }
 
     public void xor(UInt u) {
-        // TODO Complete the bitwise logical XOR method
+    int maxLength = Math.max(this.length, u.length);
+    
+    // Resize the bits array if necessary
+    if (this.length < maxLength) {
+        this.bits = Arrays.copyOf(this.bits, maxLength);
+        this.length = maxLength;
+    }
+    
+    // Perform XOR operation
+    for (int i = 0; i < maxLength; i++) {
+        boolean thisBit = i < this.length ? this.bits[this.length - i - 1] : false;
+        boolean otherBit = i < u.length ? u.bits[u.length - i - 1] : false;
+        this.bits[this.length - i - 1] = thisBit != otherBit; // XOR: true if bits are different
+    }
+}
+
         return;
     }
 
     public static UInt xor(UInt a, UInt b) {
-        // TODO Complete the static XOR method
+    UInt result = a.clone();
+    result.xor(b);
+    return result;
+}
+
         return null;
     }
 
     public void add(UInt u) {
-        // TODO Using a ripple-carry adder, perform addition using a passed UINT object
-        // The result will be stored in this.bits
-        // You will likely need to create a couple of helper methods for this.
-        // Note this one, like the bitwise ops, also needs to be aligned on the 1s place.
-        // Also note this may require increasing the length of this.bits to contain the result.
+    int maxLength = Math.max(this.length, u.length);
+    
+    // Resize the bits array if necessary
+    if (this.length < maxLength) {
+        this.bits = Arrays.copyOf(this.bits, maxLength);
+        this.length = maxLength;
+    }
+    
+    boolean carry = false;
+    
+    for (int i = 0; i < maxLength; i++) {
+        boolean thisBit = i < this.length ? this.bits[this.length - i - 1] : false;
+        boolean otherBit = i < u.length ? u.bits[u.length - i - 1] : false;
+        
+        // XOR for the sum, AND for the carry
+        boolean sum = thisBit != otherBit != carry;
+        carry = (thisBit && otherBit) || (carry && (thisBit || otherBit));
+        
+        // Set the current bit to the sum
+        this.bits[this.length - i - 1] = sum;
+    }
+    
+    // If there's still a carry after the last bit, extend the bits array
+    if (carry) {
+        this.bits = Arrays.copyOf(this.bits, maxLength + 1);
+        this.bits[0] = true;
+        this.length++;
+    }
+}
+
         return;
     }
 
     public static UInt add(UInt a, UInt b) {
-        // TODO A static change-safe version of add, should return a temp UInt object like the bitwise ops.
+    UInt result = a.clone();
+    result.add(b);
+    return result;
+}
+
         return null;
     }
 
     public void negate() {
-        // TODO You'll need a way to perform 2's complement negation
-        // The add() method will be helpful with this.
+    // Invert the bits
+    for (int i = 0; i < this.length; i++) {
+        this.bits[i] = !this.bits[i];
+    }
+    
+    // Add 1 to the inverted bits
+    add(new UInt(1)); // 1 is represented as "0b1"
+}
+
     }
 
     public void sub(UInt u) {
-        // TODO Using negate() and add(), perform in-place subtraction
-        // As this class is supposed to handle only unsigned values,
-        //   if the result of the subtraction operation would be a negative number then it should be coerced to 0.
+    UInt uNeg = u.clone();
+    uNeg.negate();
+    add(uNeg);
+    
+    // If the result is negative, we coerce it to zero.
+    if (toInt() < 0) {
+        Arrays.fill(this.bits, false); // Set all bits to 0
+    }
+}
+
         return;
     }
 
     public static UInt sub(UInt a, UInt b) {
-        // TODO And a static change-safe version of sub
+    UInt result = a.clone();
+    result.sub(b);
+    return result;
+}
+
         return null;
     }
 
     public void mul(UInt u) {
-        // TODO Using Booth's algorithm, perform multiplication
-        // This one will require that you increase the length of bits, up to a maximum of X+Y.
-        // Having negate() and add() will obviously be useful here.
-        // Also note the Booth's always treats binary values as if they are signed,
-        //   while this class is only intended to use unsigned values.
-        // This means that you may need to pad your bits array with a leading 0 if it's not already long enough.
+    int maxLength = this.length + u.length; // Maximum possible bit-length after multiplication
+    
+    // Extend this.bits and u.bits to accommodate the result.
+    this.bits = Arrays.copyOf(this.bits, maxLength);
+    boolean[] result = new boolean[maxLength]; // Result array to store the product.
+    
+    // Copy of this.bits and u.bits for multiplication.
+    boolean[] multiplicand = Arrays.copyOf(this.bits, this.length); // The first number (this)
+    boolean[] multiplier = Arrays.copyOf(u.bits, u.length); // The second number (u)
+    
+    // Extend the multiplier by adding a 0 at the least significant bit (to simulate "Booth's" 2-bit window)
+    boolean[] extendedMultiplier = new boolean[maxLength + 1]; 
+    System.arraycopy(multiplier, 0, extendedMultiplier, 0, multiplier.length);
+    
+    boolean[] extendedMultiplicand = new boolean[maxLength];
+    System.arraycopy(multiplicand, 0, extendedMultiplicand, 0, multiplicand.length);
+    
+    boolean carry = false; // Initial carry for addition/subtraction.
+    
+    for (int step = 0; step < u.length; step++) {
+        // Check the last two bits in the extended multiplier
+        boolean lastBit = extendedMultiplier[maxLength]; // Last bit in multiplier
+        boolean secondLastBit = extendedMultiplier[maxLength - 1]; // Second last bit in multiplier
+        
+        if (lastBit == false && secondLastBit == true) {
+            // Case 10: Perform subtraction of multiplicand
+            result = subtract(result, extendedMultiplicand); // Subtract multiplicand from result
+        } else if (lastBit == true && secondLastBit == false) {
+            // Case 01: Perform addition of multiplicand
+            result = add(result, extendedMultiplicand); // Add multiplicand to result
+        }
+        
+        // Right shift the result and multiplier (this is the "Booth's Algorithm step")
+        shiftRight(result, extendedMultiplier);
+    }
+    
+    // The final result
+    this.bits = result;
+    this.length = maxLength;
+}
+
+// Helper method: Add two boolean arrays (representing binary numbers)
+private boolean[] add(boolean[] a, boolean[] b) {
+    int len = a.length;
+    boolean[] sum = new boolean[len];
+    boolean carry = false;
+    
+    for (int i = len - 1; i >= 0; i--) {
+        boolean bitA = a[i];
+        boolean bitB = b[i];
+        
+        // Perform bitwise addition with carry
+        sum[i] = bitA ^ bitB ^ carry;
+        carry = (bitA && bitB) || (carry && (bitA || bitB));
+    }
+    return sum;
+}
+
+// Helper method: Subtract b from a (binary subtraction)
+private boolean[] subtract(boolean[] a, boolean[] b) {
+    // To subtract, we negate b (2's complement) and add it to a.
+    boolean[] negB = new boolean[b.length];
+    
+    for (int i = 0; i < b.length; i++) {
+        negB[i] = !b[i]; // Invert the bits
+    }
+    
+    negB = add(negB, new boolean[b.length]); // Add 1 to complete 2's complement
+    return add(a, negB); // Add the result of 2's complement to a
+}
+
+// Helper method: Perform right shift on both the result and the extended multiplier
+private void shiftRight(boolean[] result, boolean[] multiplier) {
+    // Shift result and multiplier to the right by one bit
+    for (int i = result.length - 1; i > 0; i--) {
+        result[i] = result[i - 1];
+    }
+    result[0] = false; // This bit is filled with zero during shift.
+    
+    // Shift the multiplier in the same way.
+    for (int i = multiplier.length - 1; i > 0; i--) {
+        multiplier[i] = multiplier[i - 1];
+    }
+    multiplier[0] = false; // Fill the left-most bit with zero.
+}
+
+}
+
         return;
     }
 
     public static UInt mul(UInt a, UInt b) {
-        // TODO A static, change-safe version of mul
+    UInt result = a.clone();
+    result.mul(b);
+    return result;
+}
+
         return null;
     }
 }
